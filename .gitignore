@@ -1,3 +1,4 @@
 /omt
 /dist/
 *.test
+/oauthmailtoken
