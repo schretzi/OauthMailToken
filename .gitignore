@@ -1,4 +1,3 @@
-build/
-.venv*
-dist/
-omt.spec
+/omt
+/dist/
+*.test

@@ -1,4 +1,0 @@
-keyring
-pyyaml
-pyinstaller
-pyxdg

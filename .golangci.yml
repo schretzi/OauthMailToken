@@ -1,0 +1,43 @@
+# golangci-lint v2 configuration. See https://golangci-lint.run/docs/configuration/file/
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  # "standard" = errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - gosec # security-focused checks (also runnable standalone via `make sec`)
+    - errorlint # correct use of errors.Is/As/Unwrap with wrapped errors
+    - bodyclose # unclosed HTTP response bodies (relevant: this project does a lot of HTTP)
+    - unconvert # unnecessary type conversions
+    - misspell # comment/string typos
+    - goconst # repeated literals that should be constants
+  settings:
+    gosec:
+      excludes:
+        # G402: TLS InsecureSkipVerify - not used in this project; keep default strictness otherwise.
+        - G101 # avoid false positives on non-secret-looking constant names like "keyringSystem"
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
+    rules:
+      # Test files legitimately construct config/token values inline with literal-looking secrets.
+      - path: _test\.go
+        linters:
+          - gosec
+          - goconst
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

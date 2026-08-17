@@ -1,0 +1,55 @@
+#!/bin/sh
+# Pre-commit hook: runs gofmt/go vet/golangci-lint against the currently
+# staged Go files before allowing a commit.
+#
+# Installed via `make hooks-install` (sets `git config core.hooksPath
+# .githooks`). To skip it for one commit, use `git commit --no-verify`.
+
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+staged_go_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.go' || true)
+
+if [ -z "$staged_go_files" ]; then
+	exit 0
+fi
+
+echo "pre-commit: checking $(echo "$staged_go_files" | wc -l | tr -d ' ') staged Go file(s)..."
+
+# --- gofmt --------------------------------------------------------------
+
+unformatted=""
+for f in $staged_go_files; do
+	[ -f "$f" ] || continue
+	if [ -n "$(gofmt -l "$f")" ]; then
+		unformatted="$unformatted $f"
+	fi
+done
+if [ -n "$unformatted" ]; then
+	echo "pre-commit: the following files are not gofmt'd:"
+	for f in $unformatted; do echo "  $f"; done
+	echo "pre-commit: run 'gofmt -w .' (or 'make fmt'), then re-stage and commit again."
+	exit 1
+fi
+
+# --- go vet ---------------------------------------------------------------
+
+if ! go vet ./...; then
+	echo "pre-commit: go vet failed."
+	exit 1
+fi
+
+# --- golangci-lint (soft dependency: warn, don't block, if not installed) --
+
+if command -v golangci-lint >/dev/null 2>&1; then
+	if ! golangci-lint run ./...; then
+		echo "pre-commit: golangci-lint found issues."
+		exit 1
+	fi
+else
+	echo "pre-commit: golangci-lint not installed, skipping lint step (run 'make tools' to install it)."
+fi
+
+exit 0
