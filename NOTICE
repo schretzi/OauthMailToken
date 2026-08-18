@@ -1,0 +1,85 @@
+omt — OAuth Mail Token
+Copyright (C) 2026 schretzi
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+DERIVATION FROM PRIOR WORK
+==========================
+
+This program is a derivative work of "Mutt OAuth2 token management script"
+(contrib/mutt_oauth2.py in the Mutt source distribution):
+
+    Copyright (C) 2020 Alexander Perlis
+    Licensed under the GNU General Public License, either version 2 of the
+    License, or (at your option) any later version.
+    https://gitlab.com/muttmua/mutt/-/blob/master/contrib/mutt_oauth2.py
+
+omt is a rewrite of that script in Go. It is not a clean-room
+reimplementation: the OAuth2 flows, the configuration file format, the
+stored-token layout and a number of deliberate behavioural quirks were
+carried over so that existing users and existing config files keep working.
+Individual functions in this codebase still carry comments noting which part
+of the Python original they mirror.
+
+The original grants the work under GPL version 2 "or (at your option) any
+later version". This derivative exercises that option and is distributed
+under GPL version 3 or later, which is additionally necessary because omt
+links against Apache-2.0 licensed dependencies (spf13/cobra and its
+transitive dependencies) that are not compatible with GPL version 2.
+
+
+STATEMENT OF CHANGES
+====================
+
+Per section 5(a) of the GNU General Public License version 3, this work
+carries prominent notices that it is modified. The substantive changes
+relative to mutt_oauth2.py are:
+
+  - Reimplemented in Go rather than Python.
+  - Token state moved from a GPG-encrypted file to the operating system
+    keyring (macOS Keychain, Windows Credential Manager, Linux Secret
+    Service), with transparent chunking for tokens exceeding a backend's
+    per-entry size limit.
+  - Added subcommands: authorize, refresh (single account or all),
+    list-accounts, status, token, daemon, version, completion.
+  - Added a long-running daemon that refreshes tokens on its own schedule,
+    so tokens do not go stale across machine sleep/wake cycles.
+  - Added optional automatic launching of a configured browser (including a
+    specific application and profile) for interactive authorization.
+  - Added capture of the refresh token's own expiry when a provider reports
+    one.
+  - Output discipline changed: only the access token (or a reporting
+    command's table) is written to stdout; all notices, prompts and warnings
+    go to stderr.
+  - The refresh token is no longer printed on every authorization or
+    refresh; it is now shown only under -v/--verbose.
+  - Command-line parsing moved to spf13/cobra, with generated help, man
+    pages and shell completions.
+
+
+THIRD-PARTY DEPENDENCIES
+========================
+
+This program links against the following libraries, under their own terms:
+
+  github.com/spf13/cobra                  Apache-2.0
+  github.com/spf13/pflag                  BSD-3-Clause
+  github.com/inconshreveable/mousetrap    Apache-2.0
+  github.com/zalando/go-keyring           MIT
+  github.com/danieljoos/wincred           MIT
+  github.com/godbus/dbus/v5               BSD-2-Clause
+  al.essio.dev/pkg/shellescape            MIT
+  gopkg.in/yaml.v3                        MIT and Apache-2.0
+  golang.org/x/sys                        BSD-3-Clause

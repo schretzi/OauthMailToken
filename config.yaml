@@ -1,0 +1,106 @@
+global:
+  storage: keyring
+  keyring-backend: system
+  # Verbose logging for "omt daemon": prints each account check it performs
+  # (not just refreshes/errors, which it always prints). Optional, defaults
+  # to false. Same effect as always passing -d/--debug to "omt daemon".
+  debug: false
+  # Settings for "omt daemon" (a long-running process that periodically
+  # refreshes any account's token that's about to expire, so tokens survive
+  # sleep/wake gaps without depending on an external timer firing exactly on
+  # schedule). interval is a Go duration string; optional, defaults to 5m.
+  daemon:
+    interval: 5m
+  # Default browser for interactive authorization URLs, used by any account
+  # below that doesn't set its own "browser" section. Adjust the "-a" app
+  # name to whatever you actually want as the fallback (Safari here, since
+  # it's already logged in).
+  browser:
+    command: open
+    args: ["-a", "Safari"]
+  google:
+    authorize_endpoint: https://accounts.google.com/o/oauth2/auth
+    devicecode_endpoint: https://oauth2.googleapis.com/device/code
+    token_endpoint: https://accounts.google.com/o/oauth2/token
+    redirect_uri: urn:ietf:wg:oauth:2.0:oob
+    imap_endpoint: imap.gmail.com
+    pop_endpoint: pop.gmail.com
+    smtp_endpoint: smtp.gmail.com
+    sasl_method: OAUTHBEARER
+    scope: https://mail.google.com/
+    client_id: <CLIENTID>
+    client_secret: <CLIENTSECRET>
+  o365:
+    authorize_endpoint: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+    devicecode_endpoint: https://login.microsoftonline.com/common/oauth2/v2.0/devicecode
+    token_endpoint: https://login.microsoftonline.com/common/oauth2/v2.0/token
+    redirect_uri: https://login.microsoftonline.com/common/oauth2/nativeclient
+    tenant: common
+    imap_endpoint: outlook.office365.com
+    pop_endpoint: outlook.office365.com
+    smtp_endpoint: smtp.office365.com
+    sasl_method: XOAUTH2
+    scope: "offline_access https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/POP.AccessAsUser.All https://outlook.office.com/SMTP.Send"
+    client_id: 08162f7c-0fd2-4200-a84a-f25a4db0b584
+    client_secret: "TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82"
+  # For personal Microsoft accounts (outlook.com/hotmail.com/live.com), the
+  # "/consumers/" path alone isn't enough - it also requires an app
+  # registration that's actually enabled for personal accounts. The "o365"
+  # client_id above (08162f7c-...) is the *old* public Thunderbird client ID;
+  # it's work/school-only and returns "unauthorized_client: ... not enabled
+  # for consumers" here. There's no way to fix that from config - it's an
+  # Entra ID setting on that specific app registration, which we don't
+  # control. Instead this uses Thunderbird's *current* public client ID
+  # (9e5f94bc-e8a4-4e73-b8be-63364c29d753), which is registered for personal
+  # + work/school accounts and doesn't require (or accept) a client secret -
+  # it's a "public client" in OAuth2 terms, meant for exactly this kind of
+  # third-party desktop-tool use, matching what Thunderbird/other mail
+  # clients do when they don't have their own registered app. No affiliation
+  # with this project; it's just a well-known ID the mutt/neomutt community
+  # uses for lack of an official one - see e.g.
+  # https://github.com/simonrob/email-oauth2-proxy for prior art.
+  #
+  # redirect_uri here intentionally stays the "nativeclient" one (not a
+  # dynamic http://localhost:<port>/ loopback) - Thunderbird's app
+  # registration doesn't have an arbitrary loopback URI registered, only
+  # this one, so the account below uses authflow: authcode (manual
+  # copy/paste of the code) rather than localhostauthcode.
+  o365-consumers:
+    authorize_endpoint: https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize
+    devicecode_endpoint: https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode
+    token_endpoint: https://login.microsoftonline.com/consumers/oauth2/v2.0/token
+    redirect_uri: https://login.microsoftonline.com/common/oauth2/nativeclient
+    tenant: consumers
+    imap_endpoint: outlook.office365.com
+    pop_endpoint: outlook.office365.com
+    smtp_endpoint: smtp.office365.com
+    sasl_method: XOAUTH2
+    scope: "offline_access https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/POP.AccessAsUser.All https://outlook.office.com/SMTP.Send"
+    client_id: 9e5f94bc-e8a4-4e73-b8be-63364c29d753
+    client_secret: ""
+accounts:
+  <email>@gmail.com:
+    provider: google
+    authflow: localhostauthcode
+    # Overrides the global "browser" default above. Just opens Zen Browser -
+    # no "-P <profile>" here: that's a Firefox *profile* switch, a different
+    # concept from Zen's *workspaces/spaces* (which live inside one profile).
+    # Passing -P with a name that isn't an actual profile is what triggered
+    # the profile-selector prompt. There's no released Zen CLI flag yet to
+    # jump straight to a specific workspace - see README.md for details/a
+    # link to track upstream progress.
+    browser:
+      command: open
+      args: ["-a", "Zen Browser"]
+  <email>@outlook.com:
+    # Personal Microsoft account (outlook.com/hotmail.com/live.com): use the
+    # "/consumers/" provider, not "/common/" - see the comment on
+    # "o365-consumers" above. Use "o365" instead for work/school (Office 365
+    # organizational) accounts. authflow is "authcode" (manual code
+    # copy/paste), not "localhostauthcode" - see the redirect_uri comment on
+    # "o365-consumers" for why.
+    provider: o365-consumers
+    authflow: authcode
+    browser:
+      command: open
+      args: ["-a", "Zen Browser"]

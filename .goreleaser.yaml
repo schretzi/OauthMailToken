@@ -1,0 +1,163 @@
+# goreleaser configuration. See https://goreleaser.com
+#
+# Release flow (see README): tag the commit, push the tag, then run the
+# "Release" workflow manually from the Actions tab and pick that tag. There
+# is deliberately no on-tag-push trigger.
+#
+# Try it locally without publishing anything:
+#     goreleaser check
+#     goreleaser release --snapshot --clean
+version: 2
+
+project_name: omt
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+    # Man pages and completion scripts are rendered from the cobra command
+    # tree and packaged into every archive, so the Homebrew cask can install
+    # them (see homebrew_casks below) and tarball users get them too.
+    - go run ./tools/gendocs -md docs -man man -completions completions
+
+builds:
+  - id: omt
+    main: ./cmd/omt
+    binary: omt
+    # Pure Go - no cgo anywhere in the dependency tree (go-keyring shells out
+    # to the platform's own tooling rather than linking against it), so every
+    # target below cross-compiles from a single linux runner.
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/schretzi/oauthmailtoken/internal/cli.version={{ .Version }}
+      - -X github.com/schretzi/oauthmailtoken/internal/cli.commit={{ .FullCommit }}
+      - -X github.com/schretzi/oauthmailtoken/internal/cli.date={{ .Date }}
+    mod_timestamp: "{{ .CommitTimestamp }}" # reproducible builds
+
+archives:
+  - id: omt
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      # The GPL requires the licence text and the modification notices to
+      # travel with every copy conveyed.
+      - LICENSE
+      - NOTICE
+      - config.yaml
+      - src: docs/*.md
+        dst: docs
+      - src: man/*.1
+        dst: man
+      - src: completions/*
+        dst: completions
+
+checksum:
+  name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Security
+      regexp: '^.*?sec(urity)?(\(.+\))??!?:.+$'
+      order: 2
+    - title: Other
+      order: 99
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - Merge pull request
+      - Merge branch
+
+# Casks, not formulas: goreleaser deprecated `brews` for binary releases.
+#
+# The generated cask carries Linux URLs too, but Homebrew on Linux does not
+# install casks - so in practice `brew install` is macOS-only here. Linux
+# users take the tarball below, or
+# `go install github.com/schretzi/oauthmailtoken/cmd/omt@latest`.
+homebrew_casks:
+  - name: omt
+    # Publishes to github.com/schretzi/homebrew-tap, so users can
+    # `brew install schretzi/tap/omt`. That repository must exist, and the
+    # release workflow needs a HOMEBREW_TAP_GITHUB_TOKEN secret with write
+    # access to it (the default GITHUB_TOKEN only covers this repo).
+    repository:
+      owner: schretzi
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/schretzi/OauthMailToken
+    description: Obtain and print a valid OAuth2 access token for IMAP/POP/SMTP, stored in the OS keyring
+    license: GPL-3.0-or-later
+
+    binaries:
+      - omt
+    manpages:
+      - man/omt.1
+      - man/omt-authorize.1
+      - man/omt-daemon.1
+      - man/omt-list-accounts.1
+      - man/omt-refresh.1
+      - man/omt-status.1
+      - man/omt-token.1
+      - man/omt-version.1
+    # Paths inside the release archive, placed there by the archives.files
+    # entries above.
+    completions:
+      bash: completions/omt.bash
+      zsh: completions/omt.zsh
+      fish: completions/omt.fish
+
+    commit_author:
+      name: goreleaser
+      email: noreply@github.com
+
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            # The release binaries are not notarized, so Gatekeeper would
+            # otherwise refuse to run them after a browser-less download.
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/omt"]
+          end
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Install
+
+    ```sh
+    brew install schretzi/tap/omt
+    ```
+
+    Or grab a binary from the assets below.
