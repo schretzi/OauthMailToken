@@ -27,6 +27,8 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - uses: anchore/sbom-action/download-syft@v0 # syft binary goreleaser shells out to for the sboms block
+
       - name: Verify a tag was selected
         run: |
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
