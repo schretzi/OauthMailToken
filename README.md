@@ -556,7 +556,7 @@ The cask is published to a separate tap repository, which does not exist yet:
 2. Create a fine-grained personal access token with **Contents: read and
    write** on that repository only.
 3. Add it to *this* repo under Settings → Secrets and variables → Actions as
-   **`HOMEBREW_TAP_GITHUB_TOKEN`**. The default `GITHUB_TOKEN` cannot push to
+   **`HOMEBREW_TAP_TOKEN`**. The default `GITHUB_TOKEN` cannot push to
    another repository, which is why a separate token is needed.
 
 Until that is in place, the release job will fail at the "homebrew cask"

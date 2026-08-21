@@ -44,4 +44,4 @@ jobs:
           # Write access to schretzi/homebrew-tap. The default GITHUB_TOKEN
           # cannot push to another repository, so the formula update needs
           # its own PAT stored as a repository secret.
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

@@ -108,13 +108,13 @@ homebrew_casks:
   - name: omt
     # Publishes to github.com/schretzi/homebrew-tap, so users can
     # `brew install schretzi/tap/omt`. That repository must exist, and the
-    # release workflow needs a HOMEBREW_TAP_GITHUB_TOKEN secret with write
+    # release workflow needs a HOMEBREW_TAP_TOKEN secret with write
     # access to it (the default GITHUB_TOKEN only covers this repo).
     repository:
       owner: schretzi
       name: homebrew-tap
       branch: main
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://github.com/schretzi/OauthMailToken
     description: Obtain and print a valid OAuth2 access token for IMAP/POP/SMTP, stored in the OS keyring
     license: GPL-3.0-or-later
