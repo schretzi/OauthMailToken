@@ -96,7 +96,8 @@ const redirectSuccessHTML = `<html><head><title>Authorization result</title></he
 // contextually escaped (gosec G705).
 var redirectFailureTemplate = template.Must(template.New("redirect-failure").Parse(
 	`<html><head><title>Authorization result</title></head>` +
-		`<body><p>Authorization failed: {{.}}. You may close this window and check the terminal.</p></body></html>`))
+		`<body><p>Authorization failed: {{.}}. You may close this window and check the terminal.</p></body></html>`,
+))
 
 // redirectReadHeaderTimeout bounds how long a client may take to send its
 // request headers to the loopback redirect listener. In practice the only

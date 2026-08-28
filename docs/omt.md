@@ -48,6 +48,7 @@ omt [flags] <account>
 * [omt daemon](omt_daemon.md)	 - Run in the foreground, periodically refreshing tokens due to expire
 * [omt list-accounts](omt_list-accounts.md)	 - Print the account names configured in config.yaml, one per line
 * [omt refresh](omt_refresh.md)	 - Force a refresh-token exchange, even if the access token is still valid
+* [omt service](omt_service.md)	 - Manage the omt LaunchAgent
 * [omt status](omt_status.md)	 - Show authorization status for all accounts, or one
 * [omt token](omt_token.md)	 - Print the stored access token for one account, and nothing else
 * [omt version](omt_version.md)	 - Print the omt version, build info and licence

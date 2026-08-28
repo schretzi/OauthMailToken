@@ -221,6 +221,7 @@ command.`,
 		newStatusCmd(a),
 		newTokenCmd(a),
 		newDaemonCmd(a),
+		newServiceCmd(a),
 		newVersionCmd(a),
 	)
 

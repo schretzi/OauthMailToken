@@ -6,12 +6,14 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/schretzi/oauthmailtoken/internal/config"
+	"github.com/schretzi/oauthmailtoken/internal/logfile"
 	"github.com/schretzi/oauthmailtoken/internal/token"
 )
 
@@ -52,6 +54,29 @@ Refreshes and errors are always printed; with global.debug: true (or
 }
 
 func (a *app) runDaemon(ctx context.Context) error {
+	// The daemon's output *is* its log, so it goes to omt's own log file
+	// rather than to launchd's captured stdout. newsyslog rotates that file by
+	// renaming it, and a plain inherited fd would keep filling the archive
+	// while the live log stayed empty - logfile.Writer re-stats and reopens
+	// instead. See the macos-launchd-services skill.
+	//
+	// Output is tee'd rather than redirected so an interactive `omt daemon`
+	// still prints to the terminal; under launchd the stdout half goes to
+	// /dev/null, leaving the log file as the only reader.
+	logPath, err := launchAgentService().LogPath()
+	if err != nil {
+		return err
+	}
+	logWriter, err := logfile.Open(logPath)
+	if err != nil {
+		return err
+	}
+	defer logWriter.Close()
+
+	restore := a.out
+	a.out = io.MultiWriter(restore, logWriter)
+	defer func() { a.out = restore }()
+
 	cfg, err := loadConfigWithProviders()
 	if err != nil {
 		return err

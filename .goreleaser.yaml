@@ -38,9 +38,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/schretzi/oauthmailtoken/internal/cli.version={{ .Version }}
-      - -X github.com/schretzi/oauthmailtoken/internal/cli.commit={{ .FullCommit }}
-      - -X github.com/schretzi/oauthmailtoken/internal/cli.date={{ .Date }}
+      - -X github.com/schretzi/oauthmailtoken/internal/version.version={{ .Version }}
+      - -X github.com/schretzi/oauthmailtoken/internal/version.commit={{ .FullCommit }}
+      - -X github.com/schretzi/oauthmailtoken/internal/version.date={{ .Date }}
     mod_timestamp: "{{ .CommitTimestamp }}" # reproducible builds
 
 archives:

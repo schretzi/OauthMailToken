@@ -168,5 +168,11 @@ formatters:
   settings:
     gofumpt:
       extra-rules: true
+    goimports:
+      # Without this, goimports cannot tell this module's own packages from
+      # the standard library - the module path has no dot in it - and merges
+      # them into the stdlib import group.
+      local-prefixes:
+        - github.com/schretzi/oauthmailtoken
   exclusions:
     generated: lax
