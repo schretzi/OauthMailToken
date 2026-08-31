@@ -162,7 +162,7 @@ func ServeOnce(ctx context.Context, ln net.Listener) (string, error) {
 
 	select {
 	case res := <-resultCh:
-		_ = srv.Close()
+		shutdown(srv)
 		if res.errCode != "" {
 			return "", &APIError{Code: res.errCode, Description: res.errDesc}
 		}
@@ -173,7 +173,37 @@ func ServeOnce(ctx context.Context, ln net.Listener) (string, error) {
 		}
 		return "", errors.New("local redirect server closed before a code was received")
 	case <-ctx.Done():
+		// Close, not Shutdown: the context is already cancelled, so there is
+		// nothing to be polite to - and no page anybody is waiting for.
 		_ = srv.Close()
 		return "", ctx.Err()
+	}
+}
+
+// shutdownGrace bounds how long the redirect server waits for the response it
+// just wrote to reach the browser.
+const shutdownGrace = 2 * time.Second
+
+// shutdown ends the redirect server without cutting off the page it is in the
+// middle of delivering.
+//
+// The handler sends its result *before* it returns, and net/http flushes the
+// buffered response only after the handler returns - so a plain srv.Close()
+// here races that flush and sometimes wins. The browser then gets a closed
+// connection instead of "You may close this window", and in the error case
+// loses the message explaining what went wrong. Observed as an EOF from the
+// client in CI:
+//
+//	GET "http://127.0.0.1:33851/?error=access_denied&...": EOF
+//
+// Shutdown waits for the in-flight request to finish instead, which removes
+// the ordering question rather than making the window smaller. It is bounded
+// because this runs while a human is watching a browser tab, and falls back
+// to Close so a client holding the connection cannot hang the command.
+func shutdown(srv *http.Server) {
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		_ = srv.Close()
 	}
 }

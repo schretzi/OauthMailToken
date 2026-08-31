@@ -5,6 +5,7 @@ package oauth
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -184,11 +185,21 @@ func TestServeOnceReturnsCode(t *testing.T) {
 		}{code, err}
 	}()
 
-	resp, err := http.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/?code=thecode123")
+	resp, err := redirectClient().Get("http://127.0.0.1:" + strconv.Itoa(port) + "/?code=thecode123")
 	if err != nil {
 		t.Fatalf("GET failed: %v", err)
 	}
-	resp.Body.Close()
+	// Same reason as in the error-path test below: the success page is what
+	// tells the user they can close the window, and it has to survive the
+	// server shutting itself down immediately afterwards.
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatalf("reading the redirect page: %v", err)
+	}
+	if !strings.Contains(string(body), "You may close this window") {
+		t.Errorf("redirect page = %q, want the close-the-window message", body)
+	}
 
 	select {
 	case res := <-resultCh:
@@ -201,6 +212,23 @@ func TestServeOnceReturnsCode(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for ServeOnce")
 	}
+}
+
+// redirectClient is a client that never reuses connections.
+//
+// These tests each start a short-lived server on an ephemeral port and shut it
+// down immediately, while http.Get shares one global pool keyed by host:port.
+// A pooled connection to a server that has since gone away - on a port the
+// next test may be handed again - is answered with EOF, which is precisely
+// how this suite failed in CI:
+//
+//	GET "http://127.0.0.1:33851/?error=access_denied&...": EOF
+//
+// Whether that is what fired there is not proven; it could not be reproduced
+// locally in several thousand runs. Turning keep-alive off removes the
+// possibility rather than arguing about it, and costs one TCP handshake.
+func redirectClient() *http.Client {
+	return &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
 }
 
 // TestServeOnceSurfacesRedirectError covers the case where the browser lands
@@ -229,12 +257,26 @@ func TestServeOnceSurfacesRedirectError(t *testing.T) {
 		}{code, err}
 	}()
 
-	resp, err := http.Get("http://127.0.0.1:" + strconv.Itoa(port) +
+	resp, err := redirectClient().Get("http://127.0.0.1:" + strconv.Itoa(port) +
 		"/?error=access_denied&error_description=AADSTS50020%3A+user+account+from+identity+provider+does+not+exist")
 	if err != nil {
 		t.Fatalf("GET failed: %v", err)
 	}
-	resp.Body.Close()
+	// Read the body, do not just close it. The page is the only thing the
+	// user sees at this point, and this test used to pass while the server
+	// severed the connection before delivering it - which is what failed in
+	// CI as `GET ...: EOF`.
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatalf("reading the redirect page: %v", err)
+	}
+	if !strings.Contains(string(body), "Authorization failed") {
+		t.Errorf("redirect page = %q, want it to explain the failure", body)
+	}
+	if !strings.Contains(string(body), "AADSTS50020") {
+		t.Errorf("redirect page does not carry the provider's message: %q", body)
+	}
 
 	select {
 	case res := <-resultCh:
